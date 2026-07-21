@@ -1,204 +1,135 @@
 package tr.com.eno.livo.cloud.dao.impl;
 
+import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
 import javax.sql.DataSource;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import tr.com.eno.livo.cloud.dao.UserDao;
 import tr.com.eno.livo.cloud.entity.User;
+import tr.com.eno.livo.cloud.security.AccountInputValidator;
+import tr.com.eno.livo.cloud.security.PasswordHasher;
 import tr.com.eno.livo.cloud.utility.AppConstants;
-/**
- * @author arslan
- */
+
+/** Legacy DAO retained for callers outside the transactional registration service. */
 public class UserDaoImpl implements UserDao {
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(UserDaoImpl.class);
-
-	DataSource dataSource;
+	private DataSource dataSource;
+	private PasswordHasher passwordHasher;
 
 	public DataSource getDataSource() {
-		return this.dataSource;
+		return dataSource;
 	}
 
 	public void setDataSource(DataSource dataSource) {
 		this.dataSource = dataSource;
 	}
 
+	public void setPasswordHasher(PasswordHasher passwordHasher) {
+		this.passwordHasher = passwordHasher;
+	}
+
 	@Override
 	public User getUserByEmail(String userMail) throws SQLException {
-		// TODO Auto-generated method stub
-		String query = "Select * from users where email = ?  ORDER BY user_id DESC limit 1";
-		PreparedStatement pstmt = dataSource.getConnection().prepareStatement(query);
-		pstmt.setString(1, userMail);
-	
-		User user = new User();
-		user.setUserId(0);
-		try {
-			ResultSet resultSet = pstmt.executeQuery();
-			if (resultSet.next()){
-				user.setUserId(resultSet.getInt("user_id"));
-				user.setEmail(resultSet.getString("email"));
-				user.setAccountType(resultSet.getString("account_type"));
-				user.setCompanyName(resultSet.getString("company_name"));
-				user.setAddressCountry(resultSet.getString("address_country"));
-				user.setBillingAddress(resultSet.getString("billing_address"));
-				user.setTaxNumber(resultSet.getString("tax_number"));
-				user.setName(resultSet.getString("name"));
-				user.setAccountState(resultSet.getInt("account_state"));
-
-				return user;
-			}else
-				return user;
-		} catch (Exception e) {
-			System.out.println("getUserByEmail()  query exception  : " + e.getMessage());
-			LOGGER.error("getUserByEmail()  query exception  :" + e.getMessage());
-			return user;
-
-		} finally {
-
-			if (pstmt != null) {
-				pstmt.close();
+		String email = AccountInputValidator.email(userMail);
+		String query = "SELECT * FROM users WHERE email=? ORDER BY user_id DESC LIMIT 1";
+		try (Connection connection = dataSource.getConnection();
+				PreparedStatement statement = connection.prepareStatement(query)) {
+			statement.setString(1, email);
+			try (ResultSet result = statement.executeQuery()) {
+				return result.next() ? mapUser(result) : emptyUser();
 			}
-
 		}
 	}
- 
+
 	@Override
-	public User isValidUser(String email, String userpassword, int status) throws SQLException {
-		User user = new  User();
-		user.setUserId(0);
-		
-		String query = "Select * from users where email = ? and user_password = ? and account_state= ?  ORDER BY user_id DESC limit 1";
-		PreparedStatement pstmt = dataSource.getConnection().prepareStatement(query);
-		pstmt.setString(1, email);
-		pstmt.setString(2, userpassword);
-		pstmt.setInt(3, status);
-		
-	
-		try {
-			ResultSet resultSet = pstmt.executeQuery();
-			if (resultSet.next()){
-				user.setUserId(resultSet.getInt("user_id"));
-				user.setEmail(resultSet.getString("email"));
-				user.setAccountType(resultSet.getString("account_type"));
-				user.setCompanyName(resultSet.getString("company_name"));
-				user.setAddressCountry(resultSet.getString("address_country"));
-				user.setBillingAddress(resultSet.getString("billing_address"));
-				user.setTaxNumber(resultSet.getString("tax_number"));
-				user.setName(resultSet.getString("name"));
-				user.setAccountState(resultSet.getInt("account_state"));
-
-				return user;
-			}else
-				return user;
-		} catch (Exception e) {
-			System.out.println("isValidUser()  query exception  : " + e.getMessage());
-			LOGGER.error("isValidUser()  query exception  :" + e.getMessage());
-			return user;
-
-		} finally {
-
-			if (pstmt != null) {
-				pstmt.close();
+	public User isValidUser(String emailValue, String password, int status) throws SQLException {
+		String email = AccountInputValidator.email(emailValue);
+		String query = "SELECT * FROM users WHERE email=? AND account_state=? ORDER BY user_id DESC LIMIT 1";
+		try (Connection connection = dataSource.getConnection();
+				PreparedStatement statement = connection.prepareStatement(query)) {
+			statement.setString(1, email);
+			statement.setInt(2, status);
+			try (ResultSet result = statement.executeQuery()) {
+				if (!result.next() || passwordHasher == null
+						|| !passwordHasher.matches(password, result.getString("user_password"))) {
+					return emptyUser();
+				}
+				return mapUser(result);
 			}
-
 		}
 	}
+
 	@Override
-	public boolean insertUser(String name, String email) throws SQLException {
-
-		String insertTableSQL = "INSERT INTO users(name, email ,account_state, account_type  ) VALUES (?,?,?,?)";
-		PreparedStatement pstmt = dataSource.getConnection().prepareStatement(insertTableSQL);
-		pstmt.setString(1, name);
-		pstmt.setString(2, email);
-		pstmt.setInt(3, AppConstants.UserState.SIGNIN.value);
-		pstmt.setString(4, "developer");
-
-		try {
-			// execute insert SQL stetement
-			pstmt.executeUpdate();
-		} catch (Exception e) {
-			System.out.println("User can not be inserted." + e.getMessage());
-			LOGGER.error("User can not be inserted.  " + e.getMessage());
-			return false;
-
-		} finally {
-
-			if (pstmt != null) {
-				pstmt.close();
-			}
-
+	public boolean insertUser(String nameValue, String emailValue) throws SQLException {
+		String name = AccountInputValidator.name(nameValue);
+		String email = AccountInputValidator.email(emailValue);
+		String insert = "INSERT INTO users(name,email,account_state,account_type) VALUES (?,?,?,?)";
+		try (Connection connection = dataSource.getConnection();
+				PreparedStatement statement = connection.prepareStatement(insert)) {
+			statement.setString(1, name);
+			statement.setString(2, email);
+			statement.setInt(3, AppConstants.UserState.SIGNIN.value);
+			statement.setString(4, "developer");
+			return statement.executeUpdate() == 1;
 		}
-
-		return true;
-
 	}
 
 	@Override
 	public boolean updateUser(User user) throws SQLException {
-		// TODO Auto-generated method stub
-		String updateString = "Update USERS set user_password=? , account_state= ? ,company_name=? ,address_country=? , billing_address = ? , tax_number = ?  where user_id = ? ";
-
-		PreparedStatement pstmt = dataSource.getConnection().prepareStatement(updateString);
-		try {
-
-			pstmt.setString(1, user.getUserPassword());
-			pstmt.setInt(2, user.getAccountState());
-			pstmt.setString(3, user.getCompanyName());
-			pstmt.setString(4, user.getAddressCountry());
-			pstmt.setString(5, user.getBillingAddress());
-			pstmt.setString(6, user.getTaxNumber());
-			pstmt.setInt(7, user.getUserId());
-
-			pstmt.executeUpdate();
-
-		} catch (Exception e) {
-			System.out.println("User can not be updated.  " + e.getMessage());
-			LOGGER.error("User can not be updated.  " + e.getMessage());
-			return false;
-
-		} finally {
-
-			if (pstmt != null) {
-				pstmt.close();
-			}
-
+		if (passwordHasher == null) {
+			throw new IllegalStateException("Password hasher is not configured");
 		}
-		return true;
+		String password = user.getUserPassword();
+		String encoded = passwordHasher.isEncoded(password)
+				? password : passwordHasher.hash(AccountInputValidator.password(password));
+		String update = "UPDATE users SET name=?,user_password=?,account_state=?,company_name=?,"
+				+ "address_country=?,billing_address=?,tax_number=?,updated_at=CURRENT_TIMESTAMP WHERE user_id=?";
+		try (Connection connection = dataSource.getConnection();
+				PreparedStatement statement = connection.prepareStatement(update)) {
+			statement.setString(1, AccountInputValidator.name(user.getName()));
+			statement.setString(2, encoded);
+			statement.setInt(3, user.getAccountState());
+			statement.setString(4, user.getCompanyName());
+			statement.setString(5, user.getAddressCountry());
+			statement.setString(6, user.getBillingAddress());
+			statement.setString(7, user.getTaxNumber());
+			statement.setInt(8, user.getUserId());
+			return statement.executeUpdate() == 1;
+		}
 	}
 
 	@Override
-	public boolean updateUserStateByEmail(String email,int state) throws SQLException {
-		// TODO Auto-generated method stub
-		String updateString = "Update USERS set account_state= ?  where email = ? ";
-
-		PreparedStatement pstmt = dataSource.getConnection().prepareStatement(updateString);
-		try {
-			pstmt.setInt(1, state );
-			pstmt.setString(2, email);
-			pstmt.executeUpdate();
-
-		} catch (Exception e) {
-			System.out.println("User state can not be updated.  " + e.getMessage());
-			LOGGER.error("User state can not be updated.  " + e.getMessage());
-			return false;
-
-		} finally {
-
-			if (pstmt != null) {
-				pstmt.close();
-			}
-
+	public boolean updateUserStateByEmail(String emailValue, int state) throws SQLException {
+		String email = AccountInputValidator.email(emailValue);
+		try (Connection connection = dataSource.getConnection();
+				PreparedStatement statement = connection.prepareStatement(
+						"UPDATE users SET account_state=?,updated_at=CURRENT_TIMESTAMP WHERE email=?")) {
+			statement.setInt(1, state);
+			statement.setString(2, email);
+			return statement.executeUpdate() == 1;
 		}
-		System.out.println("User account_state was updated.  ");
-		return true;
 	}
 
+	private User mapUser(ResultSet result) throws SQLException {
+		User user = new User();
+		user.setUserId(result.getInt("user_id"));
+		user.setEmail(result.getString("email"));
+		user.setAccountType(result.getString("account_type"));
+		user.setCompanyName(result.getString("company_name"));
+		user.setAddressCountry(result.getString("address_country"));
+		user.setBillingAddress(result.getString("billing_address"));
+		user.setTaxNumber(result.getString("tax_number"));
+		user.setName(result.getString("name"));
+		user.setAccountState(result.getInt("account_state"));
+		return user;
+	}
 
-
+	private User emptyUser() {
+		User user = new User();
+		user.setUserId(0);
+		return user;
+	}
 }

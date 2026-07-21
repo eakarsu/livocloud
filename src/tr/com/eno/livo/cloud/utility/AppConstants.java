@@ -1,8 +1,7 @@
 package tr.com.eno.livo.cloud.utility;
 
-import java.util.Calendar;
-import java.util.TimeZone;
-import java.util.UUID;
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
 
 import javax.ws.rs.core.MediaType;
 
@@ -12,99 +11,117 @@ import com.sun.jersey.api.client.WebResource;
 import com.sun.jersey.api.client.filter.HTTPBasicAuthFilter;
 import com.sun.jersey.core.util.MultivaluedMapImpl;
 
-public class AppConstants {
+import tr.com.eno.livo.cloud.config.RuntimeConfiguration;
+import tr.com.eno.livo.cloud.security.VerificationTokenGenerator;
 
-	public static final Calendar tzUTC = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
+public final class AppConstants {
 
-	public static final String API_KEY = "key-ea8099476b955c8b41941826618059a7";
+	public static final String CLOUD_SERVER_ADDRESS = RuntimeConfiguration.get(
+			"LIVOCLOUD_PUBLIC_BASE_URL", "http://localhost:8080/LivoCloud");
 
-	public static final String MAILGUN_API_URL = "https://api.mailgun.net/v3/sandbox091a3278a729494980e7336a142eb299.mailgun.org/messages";
+	private static final VerificationTokenGenerator TOKENS = new VerificationTokenGenerator();
 
-	public static String CLOUD_SERVER_ADDRESS = "http://localhost:8080/LivoCloud";
-
-	public static String VERIFY_MAIL_CONTENT = "<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Transitional//EN\" \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd\">\n<html xmlns=\"http://www.w3.org/1999/xhtml\">\n<head>\n<meta name=\"viewport\" content=\"width=device-width\" />\n<meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\" />\n<title>Verify Livo Account</title>\n\n\n<style type=\"text/css\">\nimg {\nmax-width: 100%;\n}\n@media only screen and (max-width: 640px) {\n h1 {\n font-weight: 600 !important; margin: 20px 0 5px !important;\n }\n h2 {\n font-weight: 600 !important; margin: 20px 0 5px !important;\n }\n h3 {\n font-weight: 600 !important; margin: 20px 0 5px !important;\n }\n h4 {\n font-weight: 600 !important; margin: 20px 0 5px !important;\n }\n h1 {\n font-size: 22px !important;\n }\n h2 {\n font-size: 18px !important;\n }\n h3 {\n font-size: 16px !important;\n }\n .container {\n width: 100% !important;\n }\n .content {\n padding: 10px !important;\n }\n .content-wrapper {\n padding: 10px !important;\n }\n .invoice {\n width: 100% !important;\n }\n}\n</style>\n</head>\n\n<body style=\"font-family: \'Helvetica Neue\', \'Helvetica\', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 13px; -webkit-font-smoothing: antialiased; -webkit-text-size-adjust: none; width: 100% !important; height: 100%; line-height: 1.6; background: #fafafa; margin: 0; padding: 0;\">\n\n<table class=\"body-wrap\" style=\"font-family: \'Helvetica Neue\', \'Helvetica\', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 13px; width: 100%; background: #fafafa; margin: 0; padding: 0;\">\n\t<tr style=\"font-family: \'Helvetica Neue\', \'Helvetica\', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 13px; margin: 0; padding: 0;\">\n\t\t<td style=\"font-family: \'Helvetica Neue\', \'Helvetica\', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 13px; vertical-align: top; margin: 0; padding: 0;\" valign=\"top\"></td>\n\t\t<td class=\"container\" width=\"600\" style=\"font-family: \'Helvetica Neue\', \'Helvetica\', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 13px; vertical-align: top; display: block !important; max-width: 520px !important; clear: both !important; margin: 0 auto; padding: 0;\" valign=\"top\">\n\t\t\t<div class=\"content\" style=\"font-family: \'Helvetica Neue\', \'Helvetica\', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 13px; max-width: 540px; display: block; margin: 0 auto; padding: 10px;\">\n <table class=\"main\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"font-family: \'Helvetica Neue\', \'Helvetica\', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 13px; border-radius: 3px; background: #fff; margin: 0; padding: 0; border: 1px solid #e8e8e8; border-radius: 2px; box-shadow: 0 2px 4px #e5e5e5;\">\n <tr style=\"font-family: \'Helvetica Neue\', \'Helvetica\', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 13px; margin: 0; padding: 0;\">\n <td class=\"aligncenter\" style=\"font-family: \'Helvetica Neue\', \'Helvetica\', Helvetica, Arial, sans-serif; box-sizing: border-box; vertical-align: top; text-align: center; margin: 0; \" align=\"center\" valign=\"top\">\n <table style=\"width: 100%; text-align: center; margin: 0;\">\n <tr>\n <td><img style=\"padding-top: 0px;\" src=\"https://codenvy.com/site/images/mail/header.png\" alt=\"Codenvy\" /></td>\n </tr>\n </table>\n <table class=\"content-wrap\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"font-family: \'Helvetica Neue\', \'Helvetica\', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 13px; padding: 15px 10px 10px 10px; margin: 0;\">\n <tr style=\"font-family: \'Helvetica Neue\', \'Helvetica\', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 13px; margin: 0; padding: 0;\">\n <td class=\"content-block\" style=\"font-family: \'Helvetica Neue\', \'Helvetica\', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 13px; vertical-align: top; margin: 0; padding: 0 0 20px;\" valign=\"top\">\n <h1 style=\"font-family: \'Helvetica Neue\', Helvetica, Arial, \'Lucida Grande\', sans-serif; box-sizing: border-box; font-size: 14px; color: #0d4269; line-height: 1.2; font-weight: 300; margin: 0 0 10px 0; padding: 0;\">Welcome to Codenvy!</h1>\n </td>\n </tr>\n <tr style=\"font-family: \'Helvetica Neue\', \'Helvetica\', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 13px; margin: 0; padding: 0;\">\n <td class=\"content-block\" style=\"font-family: \'Helvetica Neue\', \'Helvetica\', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 13px; vertical-align: top; margin: 0; padding: 0 0 20px;\" valign=\"top\">\n <table style=\"font-family: \'Helvetica Neue\', \'Helvetica\', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 13px; text-align: left; margin:0; padding: 0; width:100%;\">\n <tbody style=\"font-family: \'Helvetica Neue\', \'Helvetica\', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 13px; margin: 0;\">\n <tr style=\"font-family: \'Helvetica Neue\', \'Helvetica\', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 13px; margin: 0;\">\n <td style=\"font-family: \'Helvetica Neue\', \'Helvetica\', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 13px; margin: 0;\">\n <p style=\"font-family: \'Helvetica Neue\', \'Helvetica\', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 13px; margin: 0 0 20px 0; color: #595959;\">\n Thank you for registering with Codenvy.\n </p>\n <p style=\"font-family: \'Helvetica Neue\', \'Helvetica\', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 13px; margin: 0 0 20px 0; color: #595959;\">\n Please verify your email address to develop your mobile app:\n </p>\n </td>\n </tr>\n <tr style=\"font-family: \'Helvetica Neue\', \'Helvetica\', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 13px; margin: 0; text-align: center;\">\n <td style=\"font-family: \'Helvetica Neue\', \'Helvetica\', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 13px; margin: 0; text-align:center; padding-bottom: 30px;\">\n "
-			+ "<a href=\":verifyUrl\" style=\"font-family: \'Helvetica Neue\', \'Helvetica\', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 13px; text-decoration: none; text-transform: uppercase; line-height:1.5; font-weight: bold; display: inline-block; cursor: pointer; color: #fff; border-radius: 6px; background-color: #399076; border: 1px solid #646567; padding: 8px 20px;\">\n Let\'s Go!\n </a>\n </td>\n </tr>\n <tr style=\"font-family: \'Helvetica Neue\', \'Helvetica\', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 13px; margin: 0;\">\n <td style=\"font-family: \'Helvetica Neue\', \'Helvetica\', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 13px; margin: 0;\">\n <p style=\"font-family: \'Helvetica Neue\', \'Helvetica\', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 13px; margin: 0 0 20px 0; color: #595959;\">\n We\'re glad to have you with us.\n <strong style=\"font-family: \'Helvetica Neue\', \'Helvetica\', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 13px; font-weight: bold; color:#595959; margin: 0; display:block;\">The Codenvy Team</strong>\n </p>\n </td>\n </tr>\n </tbody>\n </table>\n </td>\n </tr>\n </table>\n </td>\n </tr>\n </table>\n\t\t\t\t<div class=\"footer\" style=\"font-family: \'Helvetica Neue\', \'Helvetica\', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 13px; width: 100%; clear: both; color: #999; margin: 0; padding: 20px 0;\">\n\t\t\t\t\t<table width=\"100%\" style=\"font-family: \'Helvetica Neue\', \'Helvetica\', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 13px; margin: 0; padding: 0;\">\n\t\t\t\t\t\t<tr style=\"font-family: \'Helvetica Neue\', \'Helvetica\', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 13px; margin: 0; padding: 0;\">\n\t\t\t\t\t\t\t<td class=\"content-block\" style=\"font-family: \'Helvetica Neue\', \'Helvetica\', Helvetica, Arial, sans-serif; box-sizing: border-box; vertical-align: top; margin: 0; width: 50%; font-size: 10px; color: #8e8d8d; text-align: left;\" valign=\"top\">2015 - Codenvy SA</td>\n\t\t\t\t\t\t\t<td class=\"content-block\" style=\"font-family: \'Helvetica Neue\', \'Helvetica\', Helvetica, Arial, sans-serif; box-sizing: border-box; vertical-align: top; margin: 0; width: 50%; font-size: 10px; color: #8e8d8d; text-align: right;\" valign=\"top\">\n Follow\n <a href=\"#\" style=\"font-family: \'Helvetica Neue\', \'Helvetica\', Helvetica, Arial, sans-serif; box-sizing: border-box; width: 50%; font-size: 10px; color: #52ade1; text-align: right;\">@CodenvyHQ</a>\n on Twitter\n </td>\n\t\t\t\t\t\t</tr>\n\t\t\t\t\t</table>\n\t\t\t\t</div></div>\n\t\t</td>\n\t\t<td style=\"font-family: \'Helvetica Neue\', \'Helvetica\', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 13px; vertical-align: top; margin: 0; padding: 0;\" valign=\"top\"></td>\n\t</tr>\n</table>\n\n</body>\n</html>";
-
-	private static String MAIL_SUBJECT = "Hello Livo Mobile";
-
-	private static String MAIL_FROM = "Mailgun Sandbox <postmaster@sandbox091a3278a729494980e7336a142eb299.mailgun.org>";
-
-	public static String PAYPAL_CLIENT_ID = "Ac6LzzNShQC7AgIqAc8G9WIMvYuFBR8oaHLf9yLMBjuxy5Lw_VkWDT61NLc6hp-kIwvp7384f01RZrtL";
-
-	public static String PAYPAL_CLIENT_SECRET = "EKJUXvH1qevNGi90KIdryPsAPjxvjaKPBIlbngs7CePySCA8nEGMwzKiNWvz0N7vJz314wCwMGAQQR7G";
-
-	public static String PAYPAL_PAYMENT_CANCEL_METHOD = "/pricing/paypalPayment/returnFail";
-
-	public static String PAYPAL_PAYMENT_SUCCESS_METHOD = "/pricing/paypalPayment/returnSuccess";
-
-	public AppConstants() {
-		super();
-		// TODO Auto-generated constructor stub
+	private AppConstants() {
 	}
 
-	public static enum UserState {
-		SIGNIN(0, "SIGNIN"), PENDING(1, "PENDING"), UNVERIFIED(11, "UNVERIFIED"), VERIFIED_INACTIVE(2, "VERIFIED_INACTIVE"), VERIFIED_ACTIVE(3,
-				"VERIFIED_ACTIVE"), EXPIRED(31, "EXPIRED"), DELETED(32, "DELETED"), RENEWED(311, "RENEWED");
+	public enum UserState {
+		SIGNIN(0, "SIGNIN"), PENDING(1, "PENDING"), UNVERIFIED(11, "UNVERIFIED"),
+		VERIFIED_INACTIVE(2, "VERIFIED_INACTIVE"), VERIFIED_ACTIVE(3, "VERIFIED_ACTIVE"),
+		EXPIRED(31, "EXPIRED"), DELETED(32, "DELETED"), RENEWED(311, "RENEWED");
 
-		public int value;
-		public String text;
+		public final int value;
+		public final String text;
 
-		UserState(int v, String t) {
-			this.text = t;
-			this.value = v;
+		UserState(int value, String text) {
+			this.value = value;
+			this.text = text;
 		}
 	}
 
-	public static enum EmailStatus {
-		PASSIVE(0, "Pasive"), ACTIVE(1, "Active");
+	public enum EmailStatus {
+		PASSIVE(0, "Passive"), ACTIVE(1, "Active");
 
-		public int value;
-		public String text;
+		public final int value;
+		public final String text;
 
-		EmailStatus(int v, String t) {
-			this.text = t;
-			this.value = v;
-		}
-	}
-	
-	
-	public static enum PlatformType {
-		DEV(0, "Developer"), PRO(1, "Professional"), ENTERPRISE(1, "Enterprise");
-
-		public int value;
-		public String text;
-
-		PlatformType(int v, String t) {
-			this.text = t;
-			this.value = v;
+		EmailStatus(int value, String text) {
+			this.value = value;
+			this.text = text;
 		}
 	}
 
-	
-	
+	public enum PlatformType {
+		DEV(0, "Developer"), PRO(1, "Professional"), ENTERPRISE(2, "Enterprise");
 
+		public final int value;
+		public final String text;
+
+		PlatformType(int value, String text) {
+			this.value = value;
+			this.text = text;
+		}
+	}
+
+	/** Retained for legacy callers; generated values are cryptographically random. */
 	public static String createToken() {
-
-		UUID token = UUID.randomUUID();
-
-		System.out.println("Token is created : " + token);
-
-		return token.toString();
+		return TOKENS.create();
 	}
 
-	public static ClientResponse SendSimpleMessage(String mailToAddress, String mailContent ) {
+	public static void sendVerificationMessage(String mailToAddress, String mailContent) {
+		String apiKey = RuntimeConfiguration.required("LIVOCLOUD_MAILGUN_API_KEY");
+		String apiUrl = RuntimeConfiguration.required("LIVOCLOUD_MAILGUN_API_URL");
+		String mailFrom = RuntimeConfiguration.required("LIVOCLOUD_MAIL_FROM");
+
 		Client client = Client.create();
-		client.addFilter(new HTTPBasicAuthFilter("api", API_KEY));
-		
-		WebResource webResource = client.resource(MAILGUN_API_URL);
-		
-		MultivaluedMapImpl formData = new MultivaluedMapImpl();
-		formData.add("from", MAIL_FROM);
-		formData.add("to", mailToAddress);
-		formData.add("subject", MAIL_SUBJECT);
-		formData.add("html", mailContent);
-		
-		return webResource.type(MediaType.APPLICATION_FORM_URLENCODED).post(ClientResponse.class, formData);
+		ClientResponse response = null;
+		try {
+			client.addFilter(new HTTPBasicAuthFilter("api", apiKey));
+			WebResource webResource = client.resource(apiUrl);
+			MultivaluedMapImpl formData = new MultivaluedMapImpl();
+			formData.add("from", mailFrom);
+			formData.add("to", mailToAddress);
+			formData.add("subject", "Verify your LivoCloud account");
+			formData.add("html", mailContent);
+			response = webResource.type(MediaType.APPLICATION_FORM_URLENCODED)
+					.post(ClientResponse.class, formData);
+			int status = response.getStatus();
+			if (status < 200 || status >= 300) {
+				throw new IllegalStateException("Verification email provider returned HTTP " + status);
+			}
+		} finally {
+			if (response != null) {
+				response.close();
+			}
+			client.destroy();
+		}
 	}
 
+	public static String verificationEmailContent(String email, String token) {
+		String verifyUrl = withoutTrailingSlash(CLOUD_SERVER_ADDRESS)
+				+ "/verifyEmail?email=" + urlEncode(email) + "&token=" + urlEncode(token);
+		return "<!doctype html><html><body>"
+				+ "<h1>Verify your LivoCloud account</h1>"
+				+ "<p>Finish registering " + html(email) + " by using this one-time link. "
+				+ "The link expires in 24 hours.</p>"
+				+ "<p><a href=\"" + html(verifyUrl) + "\">Verify account</a></p>"
+				+ "<p>If you did not request this account, ignore this message.</p>"
+				+ "</body></html>";
+	}
+
+	private static String urlEncode(String value) {
+		try {
+			return URLEncoder.encode(value, "UTF-8");
+		} catch (UnsupportedEncodingException ex) {
+			throw new IllegalStateException("UTF-8 is unavailable", ex);
+		}
+	}
+
+	private static String withoutTrailingSlash(String value) {
+		return value.endsWith("/") ? value.substring(0, value.length() - 1) : value;
+	}
+
+	private static String html(String value) {
+		return value.replace("&", "&amp;").replace("<", "&lt;")
+				.replace(">", "&gt;").replace("\"", "&quot;").replace("'", "&#39;");
+	}
 }

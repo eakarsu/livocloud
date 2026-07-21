@@ -1,0 +1,10 @@
+# Historical findings in the repository's original commit. These fingerprints
+# are baselined so CI rejects every new finding while credential owners rotate
+# the exposed values and coordinate a history rewrite.
+2d1522d911591706409de586840aa73ad1af766f:WebContent/resources/adminpanel/admin/pages/scripts/components-dropdowns.js:generic-api-key:85
+2d1522d911591706409de586840aa73ad1af766f:WebContent/resources/adminpanel/admin/pages/scripts/components-dropdowns.js:generic-api-key:103
+2d1522d911591706409de586840aa73ad1af766f:WebContent/resources/adminpanel/admin/pages/scripts/components-dropdowns.js:generic-api-key:200
+2d1522d911591706409de586840aa73ad1af766f:WebContent/resources/adminpanel/admin/pages/scripts/components-dropdowns.js:generic-api-key:218
+2d1522d911591706409de586840aa73ad1af766f:src/tr/com/eno/livo/cloud/utility/AppConstants.java:generic-api-key:19
+2d1522d911591706409de586840aa73ad1af766f:src/tr/com/eno/livo/cloud/utility/AppConstants.java:generic-api-key:34
+2d1522d911591706409de586840aa73ad1af766f:src/tr/com/eno/livo/cloud/viewBean/AWSBean.java:aws-access-token:27

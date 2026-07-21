@@ -17,7 +17,7 @@ public class HomeController {
 	public ModelAndView displayHomePage(HttpServletRequest request, HttpServletResponse response, SignUpBean signUpBean) {
 		
 		ModelAndView model = new ModelAndView("home");
-		model.addObject("homeBean", signUpBean);
+		model.addObject("signUpBean", signUpBean);
 
 		return model;
 	}

@@ -1,7 +1,6 @@
 <%@include file="include.jsp"%>
 <%@ page language="java" contentType="text/html; charset=ISO-8859-1"
 	pageEncoding="UTF-8"%>
-<%@taglib prefix="botDetect" uri="botDetect"%>
 
 <!DOCTYPE html>
 <!-- 
@@ -168,9 +167,10 @@ License: You must have a valid license purchased only from themeforest(the above
 						<div class="portlet-body form">
 							<!-- BEGIN FORM-->
 
-							<form:form action="updateUserInfos" method="post"
-								modelAttribute="userBean" id="form_sample_1"
-								class="form-horizontal">
+								<form:form action="updateUserInfos" method="post"
+									modelAttribute="userBean" id="form_sample_1"
+									class="form-horizontal">
+									<input type="hidden" name="_csrf" value="${sessionScope.csrfToken}" />
 								<div class="form-body">
 									<div class="alert alert-danger display-hide">
 										<button class="close" data-close="alert"></button>
@@ -186,7 +186,7 @@ License: You must have a valid license purchased only from themeforest(the above
 										</label>
 										<div class="col-md-4">
 											<input type="text" name="name" data-required="1"
-												  class="form-control" value="${name}" />
+											  class="form-control" value="${name}" required="required" maxlength="120" />
 										</div>
 									</div>
 									<div class="form-group">
@@ -195,7 +195,7 @@ License: You must have a valid license purchased only from themeforest(the above
 										</label>
 										<div class="col-md-4">
 											<input name="email" type="text" class="form-control"
-												  value="${email}" />
+											  value="${email}" readonly="readonly" />
 										</div>
 									</div>
 									<div class="form-group">
@@ -203,7 +203,8 @@ License: You must have a valid license purchased only from themeforest(the above
 											class="required"> * </span>
 										</label>
 										<div class="col-md-4">
-											<input name="userPassword" type="password" class="form-control" />
+										<input name="userPassword" type="password" class="form-control"
+											required="required" minlength="12" maxlength="128" autocomplete="new-password" />
 										</div>
 									</div>
 									<div class="form-group">
@@ -211,31 +212,16 @@ License: You must have a valid license purchased only from themeforest(the above
 											class="required"> * </span>
 										</label>
 										<div class="col-md-4">
-											<input name="companyName" type="text" class="form-control" />
+										<input name="companyName" type="text" class="form-control"
+											required="required" maxlength="160" />
 										</div>
 									</div>
-									<div class="form-group">
-					 
-											<label for="captchaCodeTextBox" class="prompt col-md-3">
-												Retype the code from the picture <span> * </span></label>
-										<div class="col-md-4">
-											<!-- Adding BotDetect Captcha to the page -->
-											<botDetect:captcha id="formCaptcha" codeLength="4"
-												imageWidth="150" imageStyles="graffiti, graffiti2" />
-											<div class="validationDiv">
-												<input id="captchaCodeTextBox" type="text"
-													name="captchaCodeTextBox" /><br> 
-											</div>
-
-										</div>
-							 
-									</div>
-								</div>
-								<div class="form-group">
-									<div class="col-md-offset-3 col-md-9">
-										<c:if test="${captchaValidateError}">
-											<div id="validateResponse" class="alert alert-warning">${inCorrectCaptcha}</div>
-										</c:if>
+							</div>
+							<div class="form-group">
+								<div class="col-md-offset-3 col-md-9">
+									<c:if test="${not empty validationError}">
+										<div class="alert alert-warning"><c:out value="${validationError}" /></div>
+									</c:if>
 										<c:if test="${isUpdated==false}">
 											<div id="updateFailResponse" class="alert alert-warning">${responseText}</div>
 										</c:if>

@@ -1,188 +1,156 @@
 package tr.com.eno.livo.cloud.dao.impl;
 
+import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
-import java.util.Date;
 
 import javax.sql.DataSource;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import tr.com.eno.livo.cloud.dao.PendingRequestDao;
-import tr.com.eno.livo.cloud.dao.UserDao;
-import tr.com.eno.livo.cloud.entity.User;
-import tr.com.eno.livo.cloud.utility.AppConstants;
-/**
- * @author arslan
- */
+import tr.com.eno.livo.cloud.security.AccountInputValidator;
+import tr.com.eno.livo.cloud.security.VerificationTokenGenerator;
+
+/** Legacy token DAO; raw verification capabilities are never persisted. */
 public class PendingRequestDaoImpl implements PendingRequestDao {
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(PendingRequestDaoImpl.class);
+	private static final long TOKEN_TTL_MILLIS = 24L * 60L * 60L * 1000L;
 
-	DataSource dataSource;
+	private DataSource dataSource;
+	private VerificationTokenGenerator tokenGenerator;
 
 	public DataSource getDataSource() {
-		return this.dataSource;
+		return dataSource;
 	}
 
 	public void setDataSource(DataSource dataSource) {
 		this.dataSource = dataSource;
 	}
 
-	@Override
-	public boolean insertToken(String email, String token) throws SQLException {
-
-		String insertTableSQL = "INSERT INTO pending_requests(email,token,status) VALUES (?,?,?)";
-		PreparedStatement pstmt = dataSource.getConnection().prepareStatement(insertTableSQL);
-		pstmt.setString(1, email);
-		pstmt.setString(2, token);
-		pstmt.setInt(3, 1);
-
-		try {
-			// execute insert SQL stetement
-			pstmt.executeUpdate();
-
-		} catch (Exception e) {
-			System.out.println("Pending_requests can not be inserted.  " + e.getMessage());
-			LOGGER.error("Pending_requests can not be inserted.  " + e.getMessage());
-			return false;
-
-		} finally {
-
-			if (pstmt != null) {
-				pstmt.close();
-			}
- 
-		}
-
-		return true;
+	public void setTokenGenerator(VerificationTokenGenerator tokenGenerator) {
+		this.tokenGenerator = tokenGenerator;
 	}
 
 	@Override
-	public boolean isValidToken(String email, String token) throws SQLException {
-		// TODO Auto-generated method stub
-		String isValidTokenQuery = "Select * from pending_requests where email = ? and token = ? and status = ? ORDER BY req_id desc limit 1";
-		boolean isValidToken = false;
-
-		PreparedStatement pstmt = dataSource.getConnection().prepareStatement(isValidTokenQuery);
-		try {
-			pstmt.setString(1, email);
-			pstmt.setString(2, token);
-			pstmt.setInt(3, 1); // Token status active = 1
-			// pstmt.setTimestamp(4, new Timestamp(milis), AppConstants.tzUTC);
-			ResultSet resultSet = pstmt.executeQuery();
-
-			if (resultSet.next()) {
-				Timestamp tokenExpireDate = resultSet.getTimestamp("token_expire_date");
-				Date date = new Date();
-				Timestamp currentTimestamp = new Timestamp(date.getTime());
-
-				if (currentTimestamp.getTime() - tokenExpireDate.getTime() > 0) {
-
-					System.out.println("Token expire date is expired.");
-					isValidToken = false;
-
-					deleteToken(email, token);
-
-					return isValidToken;
-
-				} else {
-
-					isValidToken = true;
+	public boolean insertToken(String emailValue, String rawToken) throws SQLException {
+		String email = AccountInputValidator.email(emailValue);
+		String digest = tokenGenerator.digest(rawToken);
+		try (Connection connection = dataSource.getConnection()) {
+			connection.setAutoCommit(false);
+			try {
+				long userId = findUserId(connection, email);
+				if (userId == 0L) {
+					connection.rollback();
+					return false;
 				}
-			} else {
-				isValidToken = false;
-			}
-
-			if (isValidToken) {
-
-				// boolean updateToken = updateTokenStatus(email, token, 2);
-				boolean deleteToken = deleteToken(email, token);
-
-				if (deleteToken) {
-					System.out.println("Token was deleted succesfull.");
-					LOGGER.debug("Token was deleted succesfull.");
-
-				} else {
-					System.out.println("Token can not be deleted.");
-					LOGGER.debug("Token can not be deleted.");
-
+				try (PreparedStatement statement = connection.prepareStatement(
+						"UPDATE pending_requests SET status=0 WHERE user_id=? AND status=1")) {
+					statement.setLong(1, userId);
+					statement.executeUpdate();
 				}
-				pstmt.close();
-
+				try (PreparedStatement statement = connection.prepareStatement(
+						"INSERT INTO pending_requests(user_id,email,token,status,token_expire_date) VALUES (?,?,?,?,?)")) {
+					statement.setLong(1, userId);
+					statement.setString(2, email);
+					statement.setString(3, digest);
+					statement.setInt(4, 1);
+					statement.setTimestamp(5, new Timestamp(System.currentTimeMillis() + TOKEN_TTL_MILLIS));
+					if (statement.executeUpdate() != 1) {
+						connection.rollback();
+						return false;
+					}
+				}
+				connection.commit();
+				return true;
+			} catch (SQLException | RuntimeException ex) {
+				connection.rollback();
+				throw ex;
 			}
-
-		} catch (Exception e) {
-			System.out.println("isValidToken() exception : " + e.getMessage());
-			LOGGER.error("isValidToken() exception : " + e.getMessage());
-			return false;
-
-		} finally {
-
-			if (pstmt != null) {
-				pstmt.close();
-			}
-
 		}
-		return isValidToken;
 	}
 
 	@Override
-	public boolean updateTokenStatus(String email, String token, int status) throws SQLException {
-		// TODO Auto-generated method stub
-		String updateString = "Update pending_requests set status= ?  where email = ? and token = ? and status = ?";
-
-		PreparedStatement pstmt = dataSource.getConnection().prepareStatement(updateString);
+	public boolean isValidToken(String emailValue, String rawToken) throws SQLException {
+		String email = AccountInputValidator.email(emailValue);
+		String digest;
 		try {
-			pstmt.setInt(1, 2); // Token status used = 2
-			pstmt.setString(2, email);
-			pstmt.setString(3, token);
-			pstmt.setInt(4, 1); // Token status active = 1
-			pstmt.executeUpdate();
-
-		} catch (Exception e) {
-			System.out.println("Token status can not be updated.  " + e.getMessage());
-			LOGGER.error("Token status can not be updated.  " + e.getMessage());
+			digest = tokenGenerator.digest(rawToken);
+		} catch (IllegalArgumentException ex) {
 			return false;
-
-		} finally {
-
-			if (pstmt != null) {
-				pstmt.close();
-			}
-
 		}
-		return true;
+		try (Connection connection = dataSource.getConnection()) {
+			connection.setAutoCommit(false);
+			try {
+				long requestId = 0L;
+				String select = "SELECT req_id FROM pending_requests WHERE email=? AND token=? AND status=1 "
+						+ "AND token_expire_date>? ORDER BY req_id DESC LIMIT 1 FOR UPDATE";
+				try (PreparedStatement statement = connection.prepareStatement(select)) {
+					statement.setString(1, email);
+					statement.setString(2, digest);
+					statement.setTimestamp(3, new Timestamp(System.currentTimeMillis()));
+					try (ResultSet result = statement.executeQuery()) {
+						if (result.next()) {
+							requestId = result.getLong(1);
+						}
+					}
+				}
+				if (requestId == 0L) {
+					connection.rollback();
+					return false;
+				}
+				try (PreparedStatement statement = connection.prepareStatement(
+						"UPDATE pending_requests SET status=2,consumed_at=CURRENT_TIMESTAMP WHERE req_id=? AND status=1")) {
+					statement.setLong(1, requestId);
+					if (statement.executeUpdate() != 1) {
+						connection.rollback();
+						return false;
+					}
+				}
+				connection.commit();
+				return true;
+			} catch (SQLException | RuntimeException ex) {
+				connection.rollback();
+				throw ex;
+			}
+		}
 	}
 
 	@Override
-	public boolean deleteToken(String email, String token) throws SQLException {
-		// TODO Auto-generated method stub
-		String deleteSQL = "DELETE FROM pending_requests where email = ? and token = ? and status = ?";
-
-		PreparedStatement pstmt = dataSource.getConnection().prepareStatement(deleteSQL);
-		try {
-			pstmt.setString(1, email);
-			pstmt.setString(2, token);
-			pstmt.setInt(3, 1); // Token status
-			pstmt.executeUpdate();
-
-		} catch (Exception e) {
-			System.out.println("Pending_requests can not be deleted.  " + e.getMessage());
-			LOGGER.error("Pending_requests can not be deleted.  " + e.getMessage());
-			return false;
-
-		} finally {
-
-			if (pstmt != null) {
-				pstmt.close();
-			}
-
+	public boolean updateTokenStatus(String emailValue, String rawToken, int status) throws SQLException {
+		String email = AccountInputValidator.email(emailValue);
+		String digest = tokenGenerator.digest(rawToken);
+		try (Connection connection = dataSource.getConnection();
+				PreparedStatement statement = connection.prepareStatement(
+						"UPDATE pending_requests SET status=?,consumed_at=CASE WHEN ?=2 THEN CURRENT_TIMESTAMP ELSE consumed_at END "
+								+ "WHERE email=? AND token=? AND status=1")) {
+			statement.setInt(1, status);
+			statement.setInt(2, status);
+			statement.setString(3, email);
+			statement.setString(4, digest);
+			return statement.executeUpdate() == 1;
 		}
-		return true;
 	}
 
+	@Override
+	public boolean deleteToken(String emailValue, String rawToken) throws SQLException {
+		String email = AccountInputValidator.email(emailValue);
+		String digest = tokenGenerator.digest(rawToken);
+		try (Connection connection = dataSource.getConnection();
+				PreparedStatement statement = connection.prepareStatement(
+						"DELETE FROM pending_requests WHERE email=? AND token=?")) {
+			statement.setString(1, email);
+			statement.setString(2, digest);
+			return statement.executeUpdate() == 1;
+		}
+	}
+
+	private long findUserId(Connection connection, String email) throws SQLException {
+		try (PreparedStatement statement = connection.prepareStatement("SELECT user_id FROM users WHERE email=?")) {
+			statement.setString(1, email);
+			try (ResultSet result = statement.executeQuery()) {
+				return result.next() ? result.getLong(1) : 0L;
+			}
+		}
+	}
 }

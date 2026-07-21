@@ -65,7 +65,11 @@ License: You must have a valid license purchased only from themeforest(the above
 <div class="content">
 	<!-- BEGIN LOGIN FORM -->
 	<form:form class="login-form" method="post" action="login" modelAttribute="loginBean">
+		<input type="hidden" name="_csrf" value="${sessionScope.csrfToken}" />
 		<h3 class="form-title">Login to your account</h3>
+		<c:if test="${not empty message}">
+			<div class="alert alert-danger"><c:out value="${message}" /></div>
+		</c:if>
 		<div class="alert alert-danger display-hide">
 			<button class="close" data-close="alert"></button>
 			<span>
@@ -76,14 +80,14 @@ License: You must have a valid license purchased only from themeforest(the above
 			<label class="control-label visible-ie8 visible-ie9">Username</label>
 			<div class="input-icon">
 				<i class="fa fa-user"></i>
-				<form:input class="form-control placeholder-no-fix" type="text" autocomplete="off" placeholder="Username" name="username" path=""/>
+					<form:input class="form-control placeholder-no-fix" type="email" autocomplete="username" placeholder="Email" path="username" maxlength="254" required="required"/>
 			</div>
 		</div>
 		<div class="form-group">
 			<label class="control-label visible-ie8 visible-ie9">Password</label>
 			<div class="input-icon">
 				<i class="fa fa-lock"></i>
-				<form:input class="form-control placeholder-no-fix" type="password" autocomplete="off" placeholder="Password" name="password" path=""/>
+					<form:password class="form-control placeholder-no-fix" autocomplete="current-password" placeholder="Password" path="password" maxlength="128" required="required"/>
 			</div>
 		</div>
 		<div class="form-actions">

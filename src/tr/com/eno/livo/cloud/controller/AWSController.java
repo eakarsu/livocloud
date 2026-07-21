@@ -1,36 +1,22 @@
 package tr.com.eno.livo.cloud.controller;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.ResponseBody;
 
-import tr.com.eno.livo.cloud.viewBean.AWSBean;
-
+/** Cloud provisioning remains deliberately disabled until a governed workflow exists. */
 @Controller
 public class AWSController {
 
-
-	@RequestMapping(value = "/createInstance", method = RequestMethod.POST)
+	@RequestMapping(value = "/createInstance", method = RequestMethod.POST, produces = MediaType.TEXT_PLAIN_VALUE)
 	@ResponseBody
-	public String createInstance(HttpServletRequest request, HttpServletResponse response) {
-		System.out.println("createInstances is called.");
-		String ipAddress = "127.0.0.1";
-
-		AWSBean awsBean = new AWSBean();
-//		awsBean.init();
-
-//		try {
-//			ipAddress = awsBean.createInstance();
-//		} catch (InterruptedException e) {
-//			// TODO Auto-generated catch block
-//			e.printStackTrace();
-//		}
-
-		return ipAddress;
+	public ResponseEntity<String> createInstance() {
+		return new ResponseEntity<String>(
+				"Cloud provisioning is not implemented. No infrastructure was changed.\n",
+				HttpStatus.NOT_IMPLEMENTED);
 	}
-
 }

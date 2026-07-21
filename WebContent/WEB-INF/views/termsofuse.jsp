@@ -168,9 +168,9 @@ License: You must have a valid license purchased only from themeforest(the above
 							<div class="portlet-body form">
 								<form:form  action="termsVerified" method="post" id="form-termsOfUse"
 									class="form-horizontal form-bordered"  modelAttribute="signUpBean">
+									<input type="hidden" name="_csrf" value="${sessionScope.csrfToken}" />
 									 	<div class="form-wrap-group">
-										<form:input type="hidden" class="form-control" id="email"
-											name="email" placeholder="Your Email"  value="${email}" path="" />
+										<form:hidden id="email" path="email" />
 									</div>
 									<div class="form-group last">
 										<div class="col-md-12">

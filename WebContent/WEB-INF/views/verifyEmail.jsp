@@ -139,15 +139,17 @@ License: You must have a valid license purchased only from themeforest(the above
 						<strong>Almost done...</strong> <br>Please check your email
 						${email} to confirm your account.
 					</div>
+					<c:if test="${deliveryFailed}">
+						<div class="alert alert-warning">
+							Your account details were saved, but email delivery failed. Use Retry below when the mail service is available.
+						</div>
+					</c:if>
 				</div>
 				<div class="col-md-12">
-					<form:form action="resendEmail" method="get" id="form-resend-email"
+					<form:form action="resendEmail" method="post" id="form-resend-email"
 						class="form-horizontal form-bordered"
 						modelAttribute="sendEmailBean">
-						<div class="form-wrap-group">
-							<input type="hidden" class="form-control" id="resendEmail"
-								name="resendEmail" value="${email}" />
-						</div>
+						<input type="hidden" name="_csrf" value="${sessionScope.csrfToken}" />
 						<div class="form-group last">
 							<div class="alert alert-info">
 								<br>Not received yet? Please check your Junk or <strong>re-send</strong>
@@ -159,7 +161,7 @@ License: You must have a valid license purchased only from themeforest(the above
 								<div class="col-md-offset-5 col-md-7">
 									<button id="resendEmailButton" type="submit"
 										class="btn btn-large red">
-										<i class="fa fa-check"></i>Resend
+									<i class="fa fa-check"></i>Retry
 									</button>
 								</div>
 							</div>

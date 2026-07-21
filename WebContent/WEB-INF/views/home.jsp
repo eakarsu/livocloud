@@ -154,13 +154,14 @@
 
 								<form:form id="signUp-form" class="form-wrap input-field"
 									action="signUp" method="post" modelAttribute="signUpBean">
+									<input type="hidden" name="_csrf" value="${sessionScope.csrfToken}" />
 									<div class="form-wrap-group">
 										<form:input type="text" class="form-control" id="name"
-											name="name" placeholder="Name Surname" path="" />
+											path="name" placeholder="Name Surname" required="required" maxlength="120" />
 									</div>
 									<div class="form-wrap-group">
 										<form:input type="email" class="form-control" id="email"
-											name="email" placeholder="Your Email" path="" />
+											path="email" placeholder="Your Email" required="required" maxlength="254" />
 									</div>
 									<!-- 									<div class="form-wrap-group border-left-transparent"> -->
 									<%-- 										<form:input type="password" class="form-control" id="password" --%>
@@ -177,6 +178,9 @@
 								<div class="col-md-12">
 									<c:if test="${isRegisteredEmail}">
 										<div id="signUpResponse" class="alert alert-warning">${userControlResponse}</div>
+									</c:if>
+									<c:if test="${not empty validationError}">
+										<div class="alert alert-warning"><c:out value="${validationError}" /></div>
 									</c:if>
 								</div>
 

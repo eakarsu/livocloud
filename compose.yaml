@@ -1,0 +1,35 @@
+services:
+  database:
+    image: postgres:16.4-alpine
+    environment:
+      POSTGRES_DB: livocloud
+      POSTGRES_USER: livocloud
+      POSTGRES_PASSWORD: ${LIVOCLOUD_DB_PASSWORD:?set LIVOCLOUD_DB_PASSWORD}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U livocloud -d livocloud"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  application:
+    build: .
+    depends_on:
+      database:
+        condition: service_healthy
+    environment:
+      LIVOCLOUD_DB_URL: jdbc:postgresql://database:5432/livocloud
+      LIVOCLOUD_DB_USERNAME: livocloud
+      LIVOCLOUD_DB_PASSWORD: ${LIVOCLOUD_DB_PASSWORD:?set LIVOCLOUD_DB_PASSWORD}
+      LIVOCLOUD_PUBLIC_BASE_URL: ${LIVOCLOUD_PUBLIC_BASE_URL:-http://localhost:8080/LivoCloud}
+      LIVOCLOUD_MAILGUN_API_KEY: ${LIVOCLOUD_MAILGUN_API_KEY:-}
+      LIVOCLOUD_MAILGUN_API_URL: ${LIVOCLOUD_MAILGUN_API_URL:-}
+      LIVOCLOUD_MAIL_FROM: ${LIVOCLOUD_MAIL_FROM:-}
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
