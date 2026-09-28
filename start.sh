@@ -23,7 +23,7 @@ export RUNTIME_AI_SYSTEM_PROMPT='You are a cloud-account operations assistant. R
 node "$PROJECT_DIR/runtime/setup.mjs"
 CHILD_PIDS=()
 (cd "$PROJECT_DIR"&&exec node runtime/api.mjs)&CHILD_PIDS+=("$!")
-(cd "$PROJECT_DIR"&&exec python3 -m http.server "$FRONTEND_PORT" --bind 127.0.0.1 --directory WebContent)&CHILD_PIDS+=("$!")
+(cd "$PROJECT_DIR"&&exec node runtime/ui.mjs)&CHILD_PIDS+=("$!")
 kill_tree(){ local pid="$1" child;for child in $(pgrep -P "$pid" 2>/dev/null||true);do kill_tree "$child";done;kill -TERM "$pid" 2>/dev/null||true; }
 cleanup(){ trap - EXIT INT TERM;for pid in "${CHILD_PIDS[@]}";do kill_tree "$pid";done;for pid in "${CHILD_PIDS[@]}";do wait "$pid" 2>/dev/null||true;done; }
 trap cleanup EXIT INT TERM
