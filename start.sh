@@ -20,6 +20,8 @@ for assigned_port in "$BACKEND_PORT" "$FRONTEND_PORT";do [[ "$assigned_port" =~ 
 [ -d "$PROJECT_DIR/WebContent" ]&&[ -d "$PROJECT_DIR/runtime" ]||{ echo "Runtime assets are missing" >&2;exit 1; }
 export RUNTIME_PROJECT_NAME=livocloud RUNTIME_AI_ENDPOINT=/api/ai/cloud-account-review RUNTIME_AI_FEATURE=cloud-account-review
 export RUNTIME_AI_SYSTEM_PROMPT='You are a cloud-account operations assistant. Review registration, verification, session security, database readiness, mail-delivery evidence, service scope, and explicit human activation gates.'
+echo "AI workspace: http://127.0.0.1:$BACKEND_PORT/ai-workspace"
+export VITE_NATIVE_AI_WORKSPACE_URL="http://127.0.0.1:$BACKEND_PORT/ai-workspace" REACT_APP_NATIVE_AI_WORKSPACE_URL="http://127.0.0.1:$BACKEND_PORT/ai-workspace"
 node "$PROJECT_DIR/runtime/setup.mjs"
 CHILD_PIDS=()
 (cd "$PROJECT_DIR"&&exec node runtime/api.mjs)&CHILD_PIDS+=("$!")
