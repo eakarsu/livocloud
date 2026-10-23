@@ -3,6 +3,9 @@ import {serveNativePromptConsole} from './serveNativePromptConsole.mjs';
 import http from 'node:http';
 import crypto from 'node:crypto';
 import { literal, persist, query } from './db.mjs';
+import { createTaskStore, exportHistory, fallbackReview, searchHistory, cloudAccountReview, seatUsageSummary, billingRiskCheck } from './features.mjs';
+const taskStore=createTaskStore();
+const loadHistory=user=>{const rows=query(`SELECT json_build_object('id',id,'feature',feature,'input',input,'output',output,'model',model,'providerReceipt',provider_receipt,'createdAt',created_at)::text FROM runtime_ai_interactions WHERE user_id=${literal(user.id)}::uuid ORDER BY created_at DESC LIMIT 50`,{rows:true});return rows?rows.split('\n').map(JSON.parse):[];};
 
 const port=Number(process.env.BACKEND_PORT);
 const frontendOrigin=`http://127.0.0.1:${process.env.FRONTEND_PORT}`;
@@ -21,16 +24,12 @@ function verify(password,stored){const [kind,salt,digest]=String(stored).split('
 function actor(req){const token=String(req.headers.authorization||'').replace(/^Bearer\s+/i,'');if(!token)return null;const cached=runtimeSessions.get(token);if(cached&&cached.expiresAt>Date.now())return cached.user;const row=query(`SELECT u.id,u.email,u.display_name,u.role FROM runtime_app_sessions s JOIN runtime_app_users u ON u.id=s.user_id WHERE s.token_hash=${literal(sha(token))} AND s.expires_at>NOW() AND u.active=TRUE LIMIT 1`,{rows:true});if(!row)return null;const [id,email,displayName,role]=row.split('\t');return{id,email,displayName,role};}
 const nativeAITransport=createNativeAITransport();
 const server=http.createServer(async(req,res)=>{
-  if(req.method==='OPTIONS'){res.writeHead(204,{'Access-Control-Allow-Origin':frontendOrigin,'Access-Control-Allow-Headers':'Authorization, Content-Type','Access-Control-Allow-Methods':'GET,POST,PUT,DELETE,OPTIONS'});return res.end();}
+  if(req.method==='OPTIONS'){res.writeHead(204,{'Access-Control-Allow-Origin':frontendOrigin,'Access-Control-Allow-Headers':'Authorization, Content-Type','Access-Control-Allow-Methods':'GET,POST,PUT,PATCH,DELETE,OPTIONS'});return res.end();}
   const url=new URL(req.url||'/',`http://127.0.0.1:${port}`);
   try{
     if(req.method==='GET'&&url.pathname==='/ai-workspace')return serveNativePromptConsole(res);
     if(req.method==='GET'&&url.pathname==='/api/health')return json(res,200,{status:'ok',project});
-    if(req.method==='GET'&&url.pathname==='/api/auth/demo-credentials'){
-      if(process.env.NODE_ENV==='production')return json(res,404,{error:'Not found'});
-      const email=process.env.DEMO_EMAIL||process.env.PROVISION_ADMIN_EMAIL||process.env.ADMIN_EMAIL;const password=process.env.DEMO_PASSWORD||process.env.PROVISION_ADMIN_PASSWORD||process.env.ADMIN_PASSWORD;
-      return email&&password?json(res,200,{email,password}):json(res,503,{error:'Demo credentials are not configured'});
-    }
+    if(req.method==='GET'&&url.pathname==='/api/auth/demo-credentials'){return json(res,404,{error:'Demo credentials are disabled'});}
     if(req.method==='POST'&&url.pathname==='/api/auth/login'){
       const body=await readBody(req);const email=String(body.email||'').trim().toLowerCase();const password=String(body.password||'');
       const record=cachedUsers.get(email);if(!record||!verify(password,record.passwordHash))return json(res,401,{error:'Invalid credentials'});
@@ -42,8 +41,35 @@ const server=http.createServer(async(req,res)=>{
     if(req.method==='GET'&&url.pathname==='/api/auth/me'){const user=actor(req);return user?json(res,200,{user}):json(res,401,{error:'Authentication required'});}
     if(req.method==='GET'&&url.pathname==='/api/ai/history'){
       const user=actor(req);if(!user)return json(res,401,{error:'Authentication required'});
-      const rows=query(`SELECT json_build_object('id',id,'feature',feature,'input',input,'output',output,'model',model,'providerReceipt',provider_receipt,'createdAt',created_at)::text FROM runtime_ai_interactions WHERE user_id=${literal(user.id)}::uuid ORDER BY created_at DESC LIMIT 50`,{rows:true});
-      return json(res,200,{history:rows?rows.split('\n').map(JSON.parse):[]});
+      return json(res,200,{history:loadHistory(user)});
+    }
+    if(req.method==='GET'&&url.pathname==='/api/ai/history/search'){
+      const user=actor(req);if(!user)return json(res,401,{error:'Authentication required'});
+      return json(res,200,{history:searchHistory(loadHistory(user),url.searchParams.get('q')||'')});
+    }
+    if(req.method==='GET'&&url.pathname==='/api/ai/history/export'){
+      const user=actor(req);if(!user)return json(res,401,{error:'Authentication required'});
+      const format=String(url.searchParams.get('format')||'json').toLowerCase();
+      if(!['json','csv','txt','text'].includes(format))return json(res,400,{error:'format must be json, csv, or txt'});
+      const out=exportHistory(loadHistory(user),format);
+      res.writeHead(200,{'Content-Type':out.contentType,'Content-Disposition':`attachment; filename="livocloud-reports.${format==='text'?'txt':format}"`,'Access-Control-Allow-Origin':frontendOrigin});return res.end(out.body);
+    }
+    if(req.method==='POST'&&url.pathname==='/api/ai/features'){
+      const user=actor(req);if(!user)return json(res,401,{error:'Authentication required'});
+      const body=await readBody(req);const rows=loadHistory(user);
+      const map={'cloud-account-review':cloudAccountReview,'seat-usage-summary':seatUsageSummary,'billing-risk-check':billingRiskCheck};
+      const fn=map[String(body.feature||'')];if(!fn)return json(res,400,{error:'Unknown feature'});
+      return json(res,200,fn(rows));
+    }
+    if(url.pathname==='/api/tasks'||url.pathname.startsWith('/api/tasks/')){
+      const user=actor(req);if(!user)return json(res,401,{error:'Authentication required'});
+      try{
+        if(req.method==='GET'&&url.pathname==='/api/tasks')return json(res,200,{tasks:taskStore.list(user.id)});
+        if(req.method==='POST'&&url.pathname==='/api/tasks'){const body=await readBody(req);return json(res,201,{task:taskStore.create(user.id,body.title)});}
+        const m=url.pathname.match(/^\/api\/tasks\/(\d+)$/);
+        if(m&&req.method==='PATCH'){const body=await readBody(req);const task=taskStore.update(user.id,Number(m[1]),body);return task?json(res,200,{task}):json(res,404,{error:'Task not found'});}
+        if(m&&req.method==='DELETE')return taskStore.remove(user.id,Number(m[1]))?json(res,200,{deleted:true,id:Number(m[1])}):json(res,404,{error:'Task not found'});
+      }catch(error){return json(res,error.status||400,{error:error.message});}
     }
     const reportRoute=url.pathname.match(/^\/api\/ai\/history\/(\d+)$/);
     if(reportRoute&&['PUT','DELETE'].includes(req.method)){
@@ -58,7 +84,7 @@ const server=http.createServer(async(req,res)=>{
       const user=actor(req);if(!user)return json(res,401,{error:'Authentication required'});
       const body=await readBody(req);const prompt=String(body.prompt||body.question||body.message||body.context||'').trim();if(!prompt||prompt.length>20000)return json(res,400,{error:'prompt must contain 1-20000 characters'});
       const base=String(process.env.OPENROUTER_BASE_URL||'').replace(/\/+$/,'');const model=String(process.env.OPENROUTER_MODEL||'').trim();const key=String(process.env.OPENROUTER_API_KEY||'').trim();
-      if(base!=='https://openrouter.ai/api/v1'||!model||!key)throw Object.assign(new Error('Exact OpenRouter configuration is required'),{status:503});
+      if(base!=='https://openrouter.ai/api/v1'||!model||!key){const fb=fallbackReview(prompt,feature);const saved=query(`INSERT INTO runtime_ai_interactions(user_id,feature,input,output,model,provider_receipt) VALUES(${literal(user.id)}::uuid,${literal(feature)},${literal(JSON.stringify(body))}::jsonb,${literal(JSON.stringify({content:fb.content}))}::jsonb,${literal(fb.model)},${literal(JSON.stringify(fb.providerReceipt))}::jsonb) RETURNING id`,{rows:true});return json(res,200,{content:fb.content,model:fb.model,fallback:true,aiGenerated:false,providerReceipt:fb.providerReceipt,interactionId:Number(saved),feature});}
       const provider=await nativeAITransport(req,res,user.id,`${base}/chat/completions`,{method:'POST',headers:{Authorization:`Bearer ${key}`,'Content-Type':'application/json','X-Title':project},body:JSON.stringify({model,messages:[{role:'system',content:systemPrompt},{role:'user',content:prompt}],max_tokens:650})});
       const content=provider.content;
       const providerReceipt=provider.providerReceipt;
